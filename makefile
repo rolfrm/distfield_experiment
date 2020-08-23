@@ -25,9 +25,11 @@ iron/libiron.a:
 
 src/ttf_font.c: 
 	xxd -i /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf > src/ttf_font.c
-src/dist.shader.c: src/dist.shader.fs src/dist.shader.vs 
+src/dist.shader.c: src/dist.shader.fs src/dist.shader.vs src/dist.shader.cs
 	xxd -i src/dist.shader.vs > src/dist.shader.c
 	xxd -i src/dist.shader.fs >> src/dist.shader.c
+	xxd -i src/dist.shader.cs >> src/dist.shader.c
+
 
 main.o: ttf_font.c
 
@@ -37,6 +39,7 @@ clean:
 	rm -f $(LIB_OBJECTS) $(ALL) src/*.o.depends src/*.o src/level*.c src/*.shader.c
 
 .PHONY: test
+.PHONY: iron/libiron.a
 test: $(TARGET)
 	make -f makefile.compiler
 	make -f makefile.test test
