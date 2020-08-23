@@ -23,6 +23,8 @@ struct _dist3d_context{
   texture * current_texture;
   u32 quad, dir_buf;
 
+  texture tex_test;
+  
   u32 dist_compute;
   texture dist_compute_target;
   u32 dist_compute_target2;
@@ -71,19 +73,19 @@ void dist3d_context_initialize(dist3d_context * ctx){
     u32 shader = gl_compile_compute_shader((char * )src_dist_shader_cs,src_dist_shader_cs_len);
     ctx->dist_compute = shader;
     printf("Shader OK?: %i\n", ctx->dist_compute);
-    image target =  image_new2(128, 128, 4, IMAGE_MODE_F32);
-    f32 * data = image_data(&target);
+    image target =  image_new(128, 128, 4);
+    u8 * data = image_data(&target);
     for(int i = 0; i < target.width * target.height * target.channels; i++){
       data[i] = 1;//0.0;//0.132231 * i;
     }
     data[0] = 1;
     data[1] = 0;
     data[3] = 1;
-    texture tex = texture_from_image(&target);
+    texture tex = texture_from_image2(&target, TEXTURE_INTERPOLATION_NEAREST);
     ctx->dist_compute_target = tex;
     ctx->dist_compute_target_image = target;
     for(int i = 0; i < target.width * target.height * target.channels; i++){
-      data[i] = -1.0;
+      data[i] = 2.0;
     }
   }
   {
@@ -91,6 +93,7 @@ void dist3d_context_initialize(dist3d_context * ctx){
     float values[3] = {1, 2, 3};
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ctx->dist_compute_target2);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(values), values, GL_DYNAMIC_COPY);
+
   }  
 }
 
@@ -165,7 +168,7 @@ void dist3d_polygon_blit(dist3d_context * ctx){
   glDrawArrays(GL_TRIANGLE_STRIP,0, 4);
   */
   int work_size[3] = {0};
-
+  
   glGetProgramiv(ctx->dist_compute, GL_COMPUTE_WORK_GROUP_SIZE, work_size);
   glUseProgram(ctx->dist_compute);
   glUniform1i(0, 0);
@@ -175,23 +178,28 @@ void dist3d_polygon_blit(dist3d_context * ctx){
   //glBindVertexBuffer(1, ctx->dist_compute_target2, 0, sizeof(float) * 3);
   //glShaderStorageBlockBinding(ctx->dist_compute, ctx->dist_compute_target2, 1);
 
-  glDispatchCompute(tex.width / work_size[0],tex.height / work_size[1],1);
+  int wx = tex.width / work_size[0], wy = tex.height / work_size[1];
+  glDispatchCompute(wx,wy,1);
   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
   
   glBindTexture(GL_TEXTURE_2D, 0);
-  glBindVertexBuffer(1, 0, 0, sizeof(float) * 3);
+  //glBindVertexBuffer(1, 0, 0, sizeof(float) * 3);
   glUseProgram(0);
-  texture_to_image(&ctx->dist_compute_target, &ctx->dist_compute_target_image);
-  float * rgba = image_data(&ctx->dist_compute_target_image);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+
+
   float xyz[3];
   glGetNamedBufferSubData(ctx->dist_compute_target2, 0, sizeof(xyz), xyz);
-  printf("%f %f %f\n", xyz[0], xyz[1], xyz[2]);
+  
+  //printf("%f %f %f\n", xyz[0], xyz[1], xyz[2]);
 
   
   blit_begin(BLIT_MODE_UNIT);
+  
   blit_bind_texture(&ctx->dist_compute_target);
-  blit_quad();
-  blit2(&ctx->dist_compute_target);
+  //blit_uv_matrix(mat3_identity());
+  blit_scale(2,2);
+  blit(-0.5, -0.5, &ctx->dist_compute_target);
   
 }
 
